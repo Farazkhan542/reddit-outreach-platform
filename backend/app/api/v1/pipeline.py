@@ -21,7 +21,7 @@ async def analytics(current: Admin, db: DB):
         return await db.scalar(select(func.count()).select_from(model).where(model.org_id == current.org_id, *where))
 
     qualified_states = [LeadStatus.qualified, LeadStatus.assigned, LeadStatus.contacted, LeadStatus.converted]
-    approved = await count(Reply, Reply.status.in_([ReplyStatus.approved, ReplyStatus.sent, ReplyStatus.failed]))
+    approved = await count(Reply, Reply.status.in_([ReplyStatus.approved, ReplyStatus.posted]))
     rejected = await count(Reply, Reply.status == ReplyStatus.rejected)
     reviewed = approved + rejected
 
@@ -29,6 +29,6 @@ async def analytics(current: Admin, db: DB):
         leads_total=await count(Lead),
         leads_qualified=await count(Lead, Lead.status.in_(qualified_states)),
         replies_pending=await count(Reply, Reply.status == ReplyStatus.pending_review),
-        replies_sent=await count(Reply, Reply.status == ReplyStatus.sent),
+        replies_posted=await count(Reply, Reply.status == ReplyStatus.posted),
         approval_rate=round(approved / reviewed, 3) if reviewed else None,
     )

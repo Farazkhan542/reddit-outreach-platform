@@ -24,5 +24,4 @@ class IntentClassification(BaseModel):
 
 
 class DraftReply(BaseModel):
-    body: str
-    kind: str = "comment"  # first touch is always a public comment
+    body: str  # a public comment draft; a person posts it manually if they approve it

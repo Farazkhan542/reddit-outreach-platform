@@ -110,11 +110,6 @@ export default function ApprovalPage() {
         ))}
         <label htmlFor="age">Reddit account age (days)</label>
         <input id="age" type="number" min={0} value={form.reddit_account_age_days} onChange={(e) => set("reddit_account_age_days", Number(e.target.value))} />
-        <label htmlFor="posting">Posting mode</label>
-        <select id="posting" value={form.posting_mode} onChange={(e) => set("posting_mode", e.target.value as ApprovalApplication["posting_mode"])}>
-          <option value="manual">Manual: people post approved replies themselves (read-only scopes, easier approval)</option>
-          <option value="api">API: app posts approved replies (needs submit + privatemessages)</option>
-        </select>
         <label htmlFor="retention">Keep Reddit data for (days)</label>
         <input id="retention" type="number" min={0} value={form.data_retention_days} onChange={(e) => set("data_retention_days", Number(e.target.value))} />
         <div className="row" style={{ marginTop: 16 }}>

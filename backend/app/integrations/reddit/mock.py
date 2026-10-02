@@ -4,7 +4,7 @@ import random
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from app.integrations.reddit.base import RedditPost, SubmitResult
+from app.integrations.reddit.base import RedditPost
 
 _SAMPLE_POSTS = [
     ("Need a sturdy dining table for 6, budget around $800", "Moving into a new place next month. Any recommendations for solid wood?"),
@@ -38,12 +38,6 @@ class MockRedditClient:
                 )
             )
         return posts
-
-    async def post_comment(self, access_token: str, parent_fullname: str, body: str) -> SubmitResult:
-        return SubmitResult(thing_id=f"t1_{uuid.uuid4().hex[:7]}")
-
-    async def send_dm(self, access_token: str, to_username: str, subject: str, body: str) -> SubmitResult:
-        return SubmitResult(thing_id=f"t4_{uuid.uuid4().hex[:7]}")
 
     async def get_account_health(self, access_token: str) -> dict:
         return {"karma": random.randint(50, 5000), "removal_rate": 0.0}

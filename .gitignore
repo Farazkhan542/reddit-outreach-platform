@@ -6,3 +6,5 @@ __pycache__/
 *.db
 node_modules/
 .next/
+next-env.d.ts
+*.tsbuildinfo

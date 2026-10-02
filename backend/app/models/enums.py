@@ -21,17 +21,11 @@ class LeadStatus(str, enum.Enum):
     converted = "converted"
 
 
-class ReplyKind(str, enum.Enum):
-    comment = "comment"
-    dm = "dm"
-
-
 class ReplyStatus(str, enum.Enum):
     pending_review = "pending_review"
-    approved = "approved"
+    approved = "approved"  # ready for the reviewer to post manually on reddit.com
     rejected = "rejected"
-    sent = "sent"
-    failed = "failed"
+    posted = "posted"  # reviewer confirmed they posted it themselves
 
 
 class DistributionStrategy(str, enum.Enum):

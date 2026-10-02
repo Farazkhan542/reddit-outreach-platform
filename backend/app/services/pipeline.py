@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents import ClassifierAgent, DrafterAgent, ScoutAgent, TenantContext
 from app.integrations.reddit import get_reddit_client
-from app.models import Lead, LeadStatus, Reply, ReplyKind, ReplyStatus, TenantConfig
+from app.models import Lead, LeadStatus, Reply, ReplyStatus, TenantConfig
 from app.services.compliance import can_reply
 from app.services.distribution import assign_lead
 
@@ -73,7 +73,7 @@ async def run_pipeline_for_org(db: AsyncSession, org_id: uuid.UUID) -> PipelineR
             continue
         result.qualified += 1
 
-        allowed, reason = await can_reply(db, org_id, post.subreddit, ReplyKind.comment)
+        allowed, reason = await can_reply(db, org_id, post.subreddit)
         if not allowed:
             lead.intent_reasoning = f"{lead.intent_reasoning}\n[compliance] {reason}"
             result.skipped_by_rules += 1
@@ -84,7 +84,6 @@ async def run_pipeline_for_org(db: AsyncSession, org_id: uuid.UUID) -> PipelineR
             Reply(
                 org_id=org_id,
                 lead_id=lead.id,
-                kind=ReplyKind.comment,
                 draft_body=draft.body,
                 status=ReplyStatus.pending_review,
             )

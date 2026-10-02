@@ -9,9 +9,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
 from app.core.config import get_settings
-from app.models import Reply, TenantConfig
+from app.models import TenantConfig
 from app.services.pipeline import run_pipeline_for_org
-from app.services.sender import send_reply
 from app.workers.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
@@ -62,13 +61,3 @@ def poll_tenant(self, org_id: str) -> dict:
     except Exception as exc:
         logger.exception("pipeline failed for org %s", org_id)
         raise self.retry(exc=exc)
-
-
-@celery_app.task
-def send_approved_reply(reply_id: str) -> str:
-    async def job(db):
-        reply = await db.get(Reply, uuid.UUID(reply_id))
-        await send_reply(db, reply)
-        return reply.status.value
-
-    return _run(job)

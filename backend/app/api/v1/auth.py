@@ -43,7 +43,7 @@ async def me(current: Current):
 @router.get("/reddit/login")
 async def reddit_login():
     # TODO: redirect to https://www.reddit.com/api/v1/authorize with
-    # scope="identity read submit privatemessages", duration=permanent, and a signed `state`.
+    # scope="identity read" (read-only), duration=permanent, and a signed `state`.
     raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, "Reddit OAuth not enabled yet (awaiting API access)")
 
 

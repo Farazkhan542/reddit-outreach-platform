@@ -8,7 +8,7 @@ from app.db.base import Base, IdMixin, TimestampMixin
 
 
 class RedditAccount(IdMixin, TimestampMixin, Base):
-    """A team member's connected Reddit account. Tokens are Fernet-encrypted at rest."""
+    """A team member's connected Reddit account (read-only scopes). Tokens are Fernet-encrypted at rest."""
 
     __tablename__ = "reddit_accounts"
 
@@ -18,7 +18,7 @@ class RedditAccount(IdMixin, TimestampMixin, Base):
     access_token_enc: Mapped[str | None] = mapped_column(Text)
     refresh_token_enc: Mapped[str | None] = mapped_column(Text)
     token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    scopes: Mapped[str] = mapped_column(String(200), default="identity read submit privatemessages")
+    scopes: Mapped[str] = mapped_column(String(200), default="identity read")
 
     # Account health
     karma: Mapped[int] = mapped_column(Integer, default=0)

@@ -1,76 +1,96 @@
-# Reddit AI Outreach Platform
+# Reddit Lead Finder (prototype)
 
-Multi-tenant lead generation on Reddit: agents find buying-intent posts, score them, and draft replies, and a person approves every reply before it is posted.
+Finds Reddit posts where someone is asking for a product recommendation, scores how likely they are to buy, and drafts a helpful reply **for a person to review**.
 
-> **Status: skeleton.** Reddit and OpenAI are **mocked**, so no external API keys are needed.
-> `REDDIT_MODE=mock` returns canned sample posts, and `LLM_MODE=mock` uses heuristic agents.
+**The app never writes to Reddit.** It doesn't post, comment, vote or send messages, and its Reddit client has no write methods. If a reviewer approves a draft, they copy it, post it themselves on reddit.com from their own account, then mark it as posted in the app.
+
+> **Status: personal prototype for development and testing.** No users or customers, not monetized.
+> Reddit and the AI model are **mocked** (`REDDIT_MODE=mock`, `LLM_MODE=mock`): the app uses canned sample posts and heuristic agents, and makes no external API calls.
+> If it ever becomes a commercial product, a separate commercial Reddit API access request will be filed first.
+
+## How it uses Reddit
+
+| | |
+|---|---|
+| Access | Read-only. OAuth scopes `identity read` |
+| What it reads | New public posts in a small, fixed list of subreddits |
+| Volume | About 1 request per minute |
+| What it stores | Post title, body, author and permalink, for up to 90 days |
+| Not done | No posting, voting or messaging. No model training on Reddit data. No resale or sharing |
+
+## Flow
+
+1. **Scout** reads new posts from the configured subreddits.
+2. **Classifier** scores buying intent ("need a dining table under $800" scores high; "finished my living room" is ignored) and pulls out needs like budget and urgency.
+3. **Subreddit rules check:** posts in subreddits that disallow commercial replies are skipped.
+4. **Drafter** writes a reply based on that post's specific details. Drafts are not templated.
+5. **Human review:** a person edits, approves or rejects each draft.
+6. **Manual posting:** for an approved draft, *Copy reply & open post* copies the text and opens the thread. The person posts it themselves, then clicks *Mark as posted*.
 
 ## Layout
 
 ```
 backend/                 FastAPI + SQLAlchemy (async) + Celery
   app/
-    api/v1/              auth, org/team, config, leads, replies, pipeline/analytics
+    api/v1/              auth, org/team, config, leads, replies (review + mark-posted), pipeline/analytics, approval guide
     agents/              Niche Interpreter, Scout, Classifier, Drafter (mock implementations)
-    integrations/reddit/ RedditClient protocol + MockRedditClient
-    services/            pipeline, compliance (subreddit rules), distribution, sender
-    models/              organizations, users, reddit_accounts, tenant_configs,
-                         leads, lead_assignments, replies, subreddit_rules
-    workers/             Celery app + Beat schedule (per-tenant poll intervals)
+    integrations/reddit/ read-only RedditClient protocol + MockRedditClient
+    services/            pipeline, compliance (subreddit rules), lead distribution, API-approval guide
+    models/              organizations, users, reddit_accounts, tenant_configs, leads,
+                         lead_assignments, replies, subreddit_rules, api_access_applications
+    workers/             Celery app + Beat schedule (periodic polling)
   alembic/               migrations
-  tests/                 end-to-end flow, tenant isolation, member permissions
-frontend/                Next.js app with /admin and /member portals (gated by middleware.ts)
+  tests/                 end-to-end flow, read-only client, data isolation, permissions
+frontend/                Next.js app with /admin and /member portals
 nginx/                   reverse proxy (/api -> FastAPI, / -> Next.js)
 docker-compose.yml       postgres, redis, api, worker, beat, web, nginx
+```
+
+The data model supports organizations with more than one reviewer, so that teams can be added later. Right now it's used by a single developer for testing.
+
+## Run it locally (no Docker)
+
+Windows, from the project folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File dev.ps1
+```
+
+This uses SQLite and opens the backend (http://localhost:8000/docs) and the app (http://localhost:3000). Sign in with any email and an organization name.
+
+Manual setup:
+
+```bash
+cd backend
+python -m venv .venv && .venv/Scripts/activate      # macOS/Linux: source .venv/bin/activate
+pip install -r requirements-dev.txt
+DATABASE_URL=sqlite+aiosqlite:///./dev.db DB_AUTO_CREATE=true uvicorn app.main:app --reload
+pytest                                              # tests use SQLite, no services needed
+
+cd frontend
+npm install && npm run dev                          # proxies /api to :8000
 ```
 
 ## Run with Docker
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up --build                          # http://localhost
 ```
 
-Open http://localhost and sign in with any email and an organization name. That account becomes the owner.
+## Try it
 
-## Run locally without Docker
+1. **Niche config:** describe what you sell, click *Suggest configuration*, then save.
+2. **Overview:** click *Run pipeline now* to scout, classify and draft against mock posts.
+3. **Review queue:** edit and approve a draft, click *Copy reply & open post*, then *Mark as posted*.
+4. **Team:** invite a reviewer. They see only the leads assigned to them.
+5. **API approval:** a checklist and request-text generator for Reddit Data API access.
 
-```bash
-# backend (needs Postgres + Redis running, or point DATABASE_URL at sqlite+aiosqlite)
-cd backend
-python -m venv .venv && .venv/Scripts/activate      # macOS/Linux: source .venv/bin/activate
-pip install -r requirements-dev.txt
-uvicorn app.main:app --reload                       # http://localhost:8000/docs
-
-# tests (SQLite, no services needed)
-pytest
-
-# frontend
-cd frontend
-npm install
-npm run dev                                         # http://localhost:3000, proxies /api to :8000
-```
-
-## Try the flow
-
-1. **Niche config**: describe what you sell, click *Suggest configuration*, then save.
-2. **Overview**: click *Run pipeline now*. The mock Scout returns sample posts, the Classifier scores them, and the Drafter queues replies.
-3. **Review queue**: edit a draft, then approve (the mock posts it) or reject it.
-4. **Team**: invite a member. They sign in with their email and see only their assigned leads and drafts.
-5. **API approval**: fill in your details, click *Save & check now*, fix what fails, follow the steps, then copy the generated request into Reddit's form. It defaults to the free, non-commercial tier.
-
-## Plugging in the real APIs later
+## When Reddit API access is approved
 
 | What | Where |
 |---|---|
-| Reddit Data API | Add a `LiveRedditClient` that implements `integrations/reddit/base.py:RedditClient`, and return it from `get_reddit_client()` when `REDDIT_MODE=live`. |
-| Reddit OAuth login | Fill in the `auth.py` `/reddit/login` and `/reddit/callback` stubs. Store tokens with `core/security.encrypt_token`. |
-| OpenAI Agents SDK | Replace each agent's `run()` with an SDK `Agent`, and use the pydantic models in `agents/schemas.py` as `output_type`. |
-| Migrations | `alembic revision --autogenerate -m "initial"` then `alembic upgrade head`. Set `DB_AUTO_CREATE=false` in production. |
-
-## Safeguards already in the code
-
-- Every draft starts as `pending_review`. Only `/replies/{id}/approve` sends it, and the approving user is recorded.
-- The first contact is always a public comment. DM sending exists in the sender but is never drafted automatically.
-- A subreddit rule that disallows commercial replies stops a draft from being created.
-- Every query is scoped by the `org_id` from the JWT. `test_tenant_isolation` covers this.
+| Reading posts | Add a `LiveRedditClient` that implements the read-only `integrations/reddit/base.py:RedditClient`, and return it when `REDDIT_MODE=live` |
+| Reddit login | Fill in the `/auth/reddit/login` and `/callback` stubs in `api/v1/auth.py` (scopes `identity read`) |
+| AI model | Replace each agent's `run()` with a real model call, and use the pydantic models in `agents/schemas.py` as structured output |
+| Migrations | `alembic revision --autogenerate -m "initial"`, then `alembic upgrade head` |

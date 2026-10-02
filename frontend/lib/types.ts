@@ -39,10 +39,10 @@ export interface Lead {
 export interface Reply {
   id: string;
   lead_id: string;
-  kind: "comment" | "dm";
   draft_body: string;
   final_body: string | null;
-  status: string;
+  status: "pending_review" | "approved" | "rejected" | "posted";
+  posted_url: string | null;
   created_at: string;
 }
 
@@ -54,7 +54,6 @@ export interface ApprovalApplication {
   contact_email: string;
   reddit_username: string;
   reddit_account_age_days: number;
-  posting_mode: "manual" | "api";
   is_commercial: boolean;
   data_retention_days: number;
   steps_done: string[];
@@ -88,6 +87,6 @@ export interface Analytics {
   leads_total: number;
   leads_qualified: number;
   replies_pending: number;
-  replies_sent: number;
+  replies_posted: number;
   approval_rate: number | null;
 }

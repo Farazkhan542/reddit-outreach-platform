@@ -27,4 +27,4 @@ class DrafterAgent:
             f"Would address: {details or 'the specific needs in the post'}; "
             f"relevant offering: {ctx.product_description or ctx.niche or 'n/a'}."
         )
-        return DraftReply(body=body, kind="comment")
+        return DraftReply(body=body)

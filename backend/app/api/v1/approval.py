@@ -8,7 +8,6 @@ from app.api.deps import DB, Admin
 from app.models import (
     ApiAccessApplication,
     ApplicationStatus,
-    PostingMode,
     SubredditRule,
     TenantConfig,
 )
@@ -26,7 +25,6 @@ class ApplicationIn(BaseModel):
     contact_email: str = ""
     reddit_username: str = ""
     reddit_account_age_days: int = Field(0, ge=0)
-    posting_mode: PostingMode = PostingMode.manual
     is_commercial: bool = False
     data_retention_days: int = Field(90, ge=0)
     steps_done: list[str] = []

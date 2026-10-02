@@ -23,7 +23,7 @@ async def test_interpret_niche(client):
     assert res.json()["niche"] == "mobile phones"
 
 
-async def test_pipeline_review_and_send(client):
+async def test_pipeline_review_and_manual_post(client):
     headers = await _setup_org(client)
 
     run = (await client.post("/api/v1/pipeline/run", headers=headers)).json()
@@ -35,12 +35,35 @@ async def test_pipeline_review_and_send(client):
 
     reply_id = queue[0]["id"]
     await client.patch(f"/api/v1/replies/{reply_id}", headers=headers, json={"final_body": "Edited reply"})
-    sent = (await client.post(f"/api/v1/replies/{reply_id}/approve", headers=headers)).json()
-    assert sent["status"] == "sent"
-    assert sent["final_body"] == "Edited reply"
+    approved = (await client.post(f"/api/v1/replies/{reply_id}/approve", headers=headers)).json()
+    assert approved["status"] == "approved"  # approving does not post anything
+    assert approved["final_body"] == "Edited reply"
+
+    # The reviewer posts it on reddit.com themselves, then records that.
+    url = "https://www.reddit.com/r/furniture/comments/abc/_/def/"
+    posted = (
+        await client.post(f"/api/v1/replies/{reply_id}/mark-posted", headers=headers, json={"posted_url": url})
+    ).json()
+    assert posted["status"] == "posted"
+    assert posted["posted_url"] == url
 
     stats = (await client.get("/api/v1/analytics", headers=headers)).json()
-    assert stats["replies_sent"] == 1
+    assert stats["replies_posted"] == 1
+
+
+async def test_cannot_mark_unapproved_as_posted(client):
+    headers = await _setup_org(client)
+    await client.post("/api/v1/pipeline/run", headers=headers)
+    reply_id = (await client.get("/api/v1/replies", headers=headers)).json()[0]["id"]
+    res = await client.post(f"/api/v1/replies/{reply_id}/mark-posted", headers=headers, json={})
+    assert res.status_code == 409
+
+
+def test_reddit_client_is_read_only():
+    from app.integrations.reddit.base import RedditClient
+
+    methods = {name for name in vars(RedditClient) if not name.startswith("_")}
+    assert methods == {"search_new", "get_account_health"}
 
 
 async def test_subreddit_rule_blocks_drafts(client):

@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr
 
-from app.models import DistributionStrategy, LeadStatus, ReplyKind, ReplyStatus, Role
+from app.models import DistributionStrategy, LeadStatus, ReplyStatus, Role
 
 
 class ORM(BaseModel):
@@ -76,7 +76,6 @@ class InterpretIn(BaseModel):
 class SubredditRuleIn(BaseModel):
     subreddit: str
     allows_commercial_replies: bool = False
-    allows_dms: bool = False
     notes: str | None = None
 
 
@@ -108,14 +107,13 @@ class AssignIn(BaseModel):
 class ReplyOut(ORM):
     id: uuid.UUID
     lead_id: uuid.UUID
-    kind: ReplyKind
     draft_body: str
     final_body: str | None
     status: ReplyStatus
     approved_by_id: uuid.UUID | None
     approved_at: datetime | None
-    sent_at: datetime | None
-    error: str | None
+    posted_at: datetime | None
+    posted_url: str | None
     created_at: datetime
 
 
@@ -123,9 +121,13 @@ class ReplyEditIn(BaseModel):
     final_body: str
 
 
+class MarkPostedIn(BaseModel):
+    posted_url: str | None = None  # link to the comment the reviewer posted, if they have it
+
+
 class AnalyticsOut(BaseModel):
     leads_total: int
     leads_qualified: int
     replies_pending: int
-    replies_sent: int
+    replies_posted: int
     approval_rate: float | None

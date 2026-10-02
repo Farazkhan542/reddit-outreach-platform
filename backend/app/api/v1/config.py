@@ -64,7 +64,6 @@ async def upsert_rule(data: SubredditRuleIn, current: Admin, db: DB):
         rule = SubredditRule(org_id=current.org_id, subreddit=name)
         db.add(rule)
     rule.allows_commercial_replies = data.allows_commercial_replies
-    rule.allows_dms = data.allows_dms
     rule.notes = data.notes
     await db.commit()
     return rule

@@ -35,7 +35,7 @@ export default function AdminOverview() {
         ["Leads found", stats.leads_total],
         ["Qualified", stats.leads_qualified],
         ["Awaiting review", stats.replies_pending],
-        ["Replies sent", stats.replies_sent],
+        ["Replies posted", stats.replies_posted],
         ["Approval rate", stats.approval_rate == null ? "-" : `${Math.round(stats.approval_rate * 100)}%`],
       ]
     : [];

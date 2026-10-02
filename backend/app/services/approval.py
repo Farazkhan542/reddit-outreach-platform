@@ -1,7 +1,7 @@
 """Reddit API approval guide: readiness checks, step list, and a generated request draft.
 
 Checks mirror what Reddit's App Review looks at under the Responsible Builder Policy:
-a specific use case, narrow scope, minimal scopes, human oversight, consent for DMs,
+a specific use case, narrow scope, minimal scopes, human oversight, no unsolicited messages,
 a privacy policy, an established account, honest commercial classification.
 """
 
@@ -9,7 +9,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from app.models import ApiAccessApplication, PostingMode, SubredditRule, TenantConfig
+from app.models import ApiAccessApplication, SubredditRule, TenantConfig
 
 LINKS = {
     "policy": "https://support.reddithelp.com/hc/en-us/articles/42728983564564-Responsible-Builder-Policy",
@@ -101,10 +101,8 @@ class CheckResult(BaseModel):
     items: list[CheckItem]
 
 
-def scopes_for(app: ApiAccessApplication) -> list[str]:
-    if app.posting_mode == PostingMode.manual:
-        return ["identity", "read"]
-    return ["identity", "read", "submit", "privatemessages"]
+# The app never writes to Reddit (people post approved replies manually), so it only needs read access.
+SCOPES = ["identity", "read"]
 
 
 def estimated_qpm(config: TenantConfig) -> float:
@@ -154,28 +152,24 @@ def run_checks(
         warn=True,
     )
 
-    scopes = scopes_for(app)
     add(
         "scopes",
-        "Minimal OAuth scopes",
-        app.posting_mode == PostingMode.manual,
-        f"Requested scopes: {' '.join(scopes)}.",
-        "Switch posting mode to 'manual' (members post approved replies themselves) to request "
-        "read-only scopes; write access to submit/DM gets much more scrutiny.",
-        warn=True,
+        "Read-only OAuth scopes",
+        True,
+        f"Requested scopes: {' '.join(SCOPES)}. The app has no code that posts, votes or messages.",
     )
 
     add(
         "human_review",
-        "Human approval before any action",
+        "Human review and manual posting",
         True,
-        "Enforced in code: every draft is pending_review until a person approves it.",
+        "Enforced in code: every draft needs a person's approval, and that person posts it themselves.",
     )
     add(
         "dm_consent",
         "No unsolicited private messages",
         True,
-        "Enforced in code: drafts are public comments; DMs are never the first touch.",
+        "The app cannot send messages; drafts are public comment suggestions only.",
     )
 
     add(
@@ -251,14 +245,6 @@ def run_checks(
 
 def build_request_text(app: ApiAccessApplication, config: TenantConfig) -> str:
     subs = ", ".join(f"r/{s.removeprefix('r/')}" for s in (config.subreddits or [])) or "(none configured yet)"
-    manual = app.posting_mode == PostingMode.manual
-    posting = (
-        "The app never posts on its own. Approved replies are copied by the team member and posted "
-        "manually from their own account, so we only request read access."
-        if manual
-        else "Approved replies are posted via the API from the reviewing team member's own connected "
-        "account, only after explicit human approval of that specific reply."
-    )
     if not app.is_commercial:
         return _free_tier_request(app, config, subs)
     return f"""Category: Developer - commercial use
@@ -279,14 +265,11 @@ How it uses Reddit:
 - Reads new public posts in a small, fixed set of subreddits: {subs}.
 - An AI model scores each post for purchase intent and drafts a reply grounded in that post's content. \
 Drafts are never templated or reused across threads.
-- Every draft goes to a human review queue. Nothing is posted without explicit approval by a named person, \
-and each approval is logged.
-- {posting}
-- We never send unsolicited private messages; contact starts as a public comment and moves to DMs only \
-if the user asks.
+- Every draft goes to a human review queue. The app never posts, votes or sends messages: if a reviewer \
+approves a draft, they post it manually from their own account on reddit.com. Each approval is logged.
 - We check and record each subreddit's self-promotion rules and skip communities that disallow commercial replies.
 
-Scopes requested: {" ".join(scopes_for(app))}
+Scopes requested: {" ".join(SCOPES)}
 Expected volume: about {estimated_qpm(config)} requests/minute (polling every {config.poll_interval_minutes} minutes).
 Data handling: we store only the post fields needed for review (title, body, author, permalink) for \
 {app.data_retention_days} days, honor deletions, and do not use Reddit data to train AI models or resell it.
@@ -309,7 +292,7 @@ not monetized, and no data is shared with anyone.
 
 How it uses Reddit:
 - Reads new public posts in a small, fixed set of subreddits: {subs}.
-- Runs under this single account. Scopes requested: {" ".join(scopes_for(app))} (read-only).
+- Runs under this single account. Scopes requested: {" ".join(SCOPES)} (read-only).
 - It does not post, vote or send messages. Any reply I decide to write, I post manually myself.
 - Expected volume: about {estimated_qpm(config)} requests/minute, well under the free-tier limit.
 

@@ -8,12 +8,6 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base, IdMixin, TimestampMixin
 
 
-class PostingMode(str, enum.Enum):
-    # manual: members copy approved replies and post them themselves -> read-only API scopes.
-    manual = "manual"
-    api = "api"
-
-
 class ApplicationStatus(str, enum.Enum):
     not_started = "not_started"
     submitted = "submitted"
@@ -34,9 +28,6 @@ class ApiAccessApplication(IdMixin, TimestampMixin, Base):
     contact_email: Mapped[str] = mapped_column(String(320), default="")
     reddit_username: Mapped[str] = mapped_column(String(100), default="")
     reddit_account_age_days: Mapped[int] = mapped_column(Integer, default=0)
-    posting_mode: Mapped[PostingMode] = mapped_column(
-        Enum(PostingMode, native_enum=False), default=PostingMode.manual
-    )
     # False = free non-commercial tier (internal development/testing only).
     is_commercial: Mapped[bool] = mapped_column(default=False)
     data_retention_days: Mapped[int] = mapped_column(Integer, default=90)
